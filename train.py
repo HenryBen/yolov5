@@ -1,4 +1,4 @@
-# Ultralytics YOLOv5 🚀, AGPL-3.0 license
+# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
 """
 Train a YOLOv5 model on a custom dataset. Models and datasets download automatically from the latest YOLOv5 release.
 
@@ -56,7 +56,7 @@ from utils.general import (
     LOGGER,
     TQDM_BAR_FORMAT,
     check_amp,
-    check_dataset,
+    check_dataset2,
     check_file,
     check_git_info,
     check_git_status,
@@ -173,7 +173,9 @@ def train(hyp, opt, device, callbacks):
     cuda = device.type != "cpu"
     init_seeds(opt.seed + 1 + RANK, deterministic=True)
     with torch_distributed_zero_first(LOCAL_RANK):
-        data_dict = data_dict or check_dataset(data)  # check if None
+        data_dict = data_dict or check_dataset2(data, opt.label_class, opt.label_class_count)  # check if None
+
+    print("data_dict=", data_dict)
     train_path, val_path = data_dict["train"], data_dict["val"]
     nc = 1 if single_cls else int(data_dict["nc"])  # number of classes
     names = {0: "item"} if single_cls and len(data_dict["names"]) != 1 else data_dict["names"]  # class names
@@ -224,11 +226,7 @@ def train(hyp, opt, device, callbacks):
     if opt.cos_lr:
         lf = one_cycle(1, hyp["lrf"], epochs)  # cosine 1->hyp['lrf']
     else:
-
-        def lf(x):
-            """Linear learning rate scheduler function with decay calculated by epoch proportion."""
-            return (1 - x / epochs) * (1.0 - hyp["lrf"]) + hyp["lrf"]  # linear
-
+        lf = lambda x: (1 - x / epochs) * (1.0 - hyp["lrf"]) + hyp["lrf"]  # linear
     scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lf)  # plot_lr_scheduler(optimizer, scheduler, epochs)
 
     # EMA
@@ -417,6 +415,8 @@ def train(hyp, opt, device, callbacks):
                     return
             # end batch ------------------------------------------------------------------------------------------------
 
+        LOGGER.info(f'box_loss: {mloss[0]}, obj_loss: {mloss[1]}, cls_loss: {mloss[2]}')
+
         # Scheduler
         lr = [x["lr"] for x in optimizer.param_groups]  # for loggers
         scheduler.step()
@@ -520,9 +520,11 @@ def parse_opt(known=False):
     parser.add_argument("--weights", type=str, default=ROOT / "yolov5s.pt", help="initial weights path")
     parser.add_argument("--cfg", type=str, default="", help="model.yaml path")
     parser.add_argument("--data", type=str, default=ROOT / "data/coco128.yaml", help="dataset.yaml path")
+    parser.add_argument("--label-class", type=str, default="", help="label class")
+    parser.add_argument("--label-class-count", type=int, default=1, help="label class count")
     parser.add_argument("--hyp", type=str, default=ROOT / "data/hyps/hyp.scratch-low.yaml", help="hyperparameters path")
-    parser.add_argument("--epochs", type=int, default=100, help="total training epochs")
-    parser.add_argument("--batch-size", type=int, default=16, help="total batch size for all GPUs, -1 for autobatch")
+    parser.add_argument("--epochs", type=int, default=10, help="total training epochs")
+    parser.add_argument("--batch-size", type=int, default=32, help="total batch size for all GPUs, -1 for autobatch")
     parser.add_argument("--imgsz", "--img", "--img-size", type=int, default=640, help="train, val image size (pixels)")
     parser.add_argument("--rect", action="store_true", help="rectangular training")
     parser.add_argument("--resume", nargs="?", const=True, default=False, help="resume most recent training")
@@ -544,7 +546,7 @@ def parse_opt(known=False):
     parser.add_argument("--optimizer", type=str, choices=["SGD", "Adam", "AdamW"], default="SGD", help="optimizer")
     parser.add_argument("--sync-bn", action="store_true", help="use SyncBatchNorm, only available in DDP mode")
     parser.add_argument("--workers", type=int, default=8, help="max dataloader workers (per RANK in DDP mode)")
-    parser.add_argument("--project", default=ROOT / "runs/train", help="save to project/name")
+    parser.add_argument("--work-dir", default=ROOT / "runs/train", help="save to project/name")
     parser.add_argument("--name", default="exp", help="save to project/name")
     parser.add_argument("--exist-ok", action="store_true", help="existing project/name ok, do not increment")
     parser.add_argument("--quad", action="store_true", help="quad dataloader")
@@ -591,21 +593,21 @@ def main(opt, callbacks=Callbacks()):
         if is_url(opt_data):
             opt.data = check_file(opt_data)  # avoid HUB resume auth timeout
     else:
-        opt.data, opt.cfg, opt.hyp, opt.weights, opt.project = (
-            check_file(opt.data),
+        opt.data, opt.cfg, opt.hyp, opt.weights, opt.work_dir = (
+            str(opt.data),
             check_yaml(opt.cfg),
             check_yaml(opt.hyp),
             str(opt.weights),
-            str(opt.project),
+            str(opt.work_dir),
         )  # checks
         assert len(opt.cfg) or len(opt.weights), "either --cfg or --weights must be specified"
         if opt.evolve:
-            if opt.project == str(ROOT / "runs/train"):  # if default project name, rename to runs/evolve
-                opt.project = str(ROOT / "runs/evolve")
+            if opt.work_dir == str(ROOT / "runs/train"):  # if default project name, rename to runs/evolve
+                opt.work_dir = str(ROOT / "runs/evolve")
             opt.exist_ok, opt.resume = opt.resume, False  # pass resume to exist_ok and disable resume
         if opt.name == "cfg":
             opt.name = Path(opt.cfg).stem  # use model.yaml as name
-        opt.save_dir = str(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
+        opt.save_dir = str(increment_path(Path(opt.work_dir) / opt.name, exist_ok=opt.exist_ok))
 
     # DDP mode
     device = select_device(opt.device, batch_size=opt.batch_size)

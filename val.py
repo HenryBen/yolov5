@@ -1,4 +1,4 @@
-# Ultralytics YOLOv5 🚀, AGPL-3.0 license
+# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
 """
 Validate a trained YOLOv5 detection model on a detection dataset.
 
@@ -119,36 +119,35 @@ def process_batch(detections, labels, iouv):
 
 @smart_inference_mode()
 def run(
-    data,
-    weights=None,  # model.pt path(s)
-    batch_size=32,  # batch size
-    imgsz=640,  # inference size (pixels)
-    conf_thres=0.001,  # confidence threshold
-    iou_thres=0.6,  # NMS IoU threshold
-    max_det=300,  # maximum detections per image
-    task="val",  # train, val, test, speed or study
-    device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
-    workers=8,  # max dataloader workers (per RANK in DDP mode)
-    single_cls=False,  # treat as single-class dataset
-    augment=False,  # augmented inference
-    verbose=False,  # verbose output
-    save_txt=False,  # save results to *.txt
-    save_hybrid=False,  # save label+prediction hybrid results to *.txt
-    save_conf=False,  # save confidences in --save-txt labels
-    save_json=False,  # save a COCO-JSON results file
-    project=ROOT / "runs/val",  # save to project/name
-    name="exp",  # save to project/name
-    exist_ok=False,  # existing project/name ok, do not increment
-    half=True,  # use FP16 half-precision inference
-    dnn=False,  # use OpenCV DNN for ONNX inference
-    model=None,
-    dataloader=None,
-    save_dir=Path(""),
-    plots=True,
-    callbacks=Callbacks(),
-    compute_loss=None,
+        data,
+        weights=None,  # model.pt path(s)
+        batch_size=32,  # batch size
+        imgsz=640,  # inference size (pixels)
+        conf_thres=0.001,  # confidence threshold
+        iou_thres=0.6,  # NMS IoU threshold
+        max_det=300,  # maximum detections per image
+        task="val",  # train, val, test, speed or study
+        device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
+        workers=8,  # max dataloader workers (per RANK in DDP mode)
+        single_cls=False,  # treat as single-class dataset
+        augment=False,  # augmented inference
+        verbose=False,  # verbose output
+        save_txt=False,  # save results to *.txt
+        save_hybrid=False,  # save label+prediction hybrid results to *.txt
+        save_conf=False,  # save confidences in --save-txt labels
+        save_json=False,  # save a COCO-JSON results file
+        project=ROOT / "runs/val",  # save to project/name
+        name="exp",  # save to project/name
+        exist_ok=False,  # existing project/name ok, do not increment
+        half=True,  # use FP16 half-precision inference
+        dnn=False,  # use OpenCV DNN for ONNX inference
+        model=None,
+        dataloader=None,
+        save_dir=Path(""),
+        plots=True,
+        callbacks=Callbacks(),
+        compute_loss=None,
 ):
-    """Evaluates model on a dataset and logs performance metrics, results are saved to specific directories."""
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
@@ -304,7 +303,9 @@ def run(
 
     # Print results
     pf = "%22s" + "%11i" * 2 + "%11.3g" * 4  # print format
-    LOGGER.info(pf % ("all", seen, nt.sum(), mp, mr, map50, map))
+    # LOGGER.info(pf % ("all", seen, nt.sum(), mp, mr, map50, map))
+    LOGGER.info(
+        f'Class: "all", Images: {seen}, Instances: {nt.sum()}, P: {mp}, R: {mr}, mAP50: {map50}, mAP50-95: {map}')
     if nt.sum() == 0:
         LOGGER.warning(f"WARNING ⚠️ no labels found in {task} set, can not compute metrics without labels")
 
